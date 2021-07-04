@@ -1496,14 +1496,16 @@ void * createContext(int width, int height, int bitrate, int intra_period, int i
                );
     }
 
-    // the buffer to receive the enocded frames from encodeImage
+    // the buffer to receive the encoded frames from encodeImage
     context->encoded_buffer = (uint8_t*)malloc(context->frame_width_mbaligned * context->frame_height_mbaligned * 3);
     
     if(init_va(context) != VA_STATUS_SUCCESS) {
+        free(context->encoded_buffer);
         return NULL;
     }
     
     if(setup_encode(context) != VA_STATUS_SUCCESS) {
+        free(context->encoded_buffer);
         return NULL;
     }
 
@@ -1593,6 +1595,10 @@ int main(int argc,char **argv)
     int intra_idr_period = 0;//-1;
     int ip_period = 1;
     VA264Context * context = (VA264Context *)createContext(640, 480, 500000, intra_period, intra_idr_period, ip_period, 30);
+    if(!context) {
+        fprintf(stderr, "Failed to create vaapi context\n");
+        exit(1);
+    }
 
     int idr_every = 100;
     FILE* fout = fopen("/tmp/test.264","w+");

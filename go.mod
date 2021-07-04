@@ -1,4 +1,4 @@
-module githib.com/richinsley/vaapi_h264
+module github.com/richinsley/vaapi_h264
 
 go 1.14
 

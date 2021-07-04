@@ -4,3 +4,4 @@ cmake/CMakeFiles
 cmake/Makefile
 cmake/cmake_install.cmake
 cmake/vaapi_test
+cmake/build
