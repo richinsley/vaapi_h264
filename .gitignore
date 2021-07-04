@@ -1,0 +1,6 @@
+.vscode
+cmake/CMakeCache.txt
+cmake/CMakeFiles
+cmake/Makefile
+cmake/cmake_install.cmake
+cmake/vaapi_test

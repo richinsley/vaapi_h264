@@ -1,0 +1,66 @@
+#ifndef VA_VA264
+#define VA_VA264
+
+#include <va/va.h>
+#include <va/va_enc_h264.h>
+#include <stdbool.h>
+
+#define SURFACE_NUM 16 /* 16 surfaces for reference */
+
+typedef struct {
+    VAProfile       h264_profile;
+    int             h264_entropy_mode;
+    int             frame_width;
+    int             frame_height;
+    int             frame_rate;
+    unsigned int    frame_bitrate;
+    int             initial_qp;
+    int             minimal_qp;
+    int             intra_period;
+    int             intra_idr_period;
+    int             ip_period;
+    int             rc_mode;
+} VA264Config;
+
+typedef struct {
+    VADisplay                           va_dpy;
+
+    VAConfigAttrib                      attrib[VAConfigAttribTypeMax];
+    VAConfigAttrib                      config_attrib[VAConfigAttribTypeMax];
+    int                                 config_attrib_num;
+    int                                 enc_packed_header_idx;
+    VASurfaceID                         src_surface[SURFACE_NUM];
+    VABufferID                          coded_buf[SURFACE_NUM];
+    VASurfaceID                         ref_surface[SURFACE_NUM];
+    VAConfigID                          config_id;
+    VAContextID                         context_id;
+    VAEncSequenceParameterBufferH264    seq_param;
+    VAEncPictureParameterBufferH264     pic_param;
+    VAEncSliceParameterBufferH264       slice_param;
+    VAPictureH264                       CurrentCurrPic;
+    VAPictureH264                       ReferenceFrames[16];
+    VAPictureH264                       RefPicList0_P[32];
+    VAPictureH264                       RefPicList0_B[32];
+    VAPictureH264                       RefPicList1_B[32];
+
+    unsigned int                        numShortTerm;
+    int                                 constraint_set_flag;
+    int                                 h264_packedheader; /* support pack header? */
+    int                                 h264_maxref;
+    int                                 frame_width_mbaligned;
+    int                                 frame_height_mbaligned;
+    unsigned int                        current_frame_num;
+    int                                 current_frame_type;
+    unsigned long long                  current_frame_encoding;
+    unsigned long long                  current_frame_display;
+    unsigned long long                  current_IDR_display;
+
+    uint8_t *                           encoded_buffer;
+    VA264Config config;
+} VA264Context;
+
+void destroyContext(void * ctx);
+void * createContext(int width, int height, int bitrate, int intra_period, int idr_period, int ip_period, int frame_rate);
+uint8_t * encodeImage(void * ctx, int fourcc, uint8_t * y, uint8_t * u, uint8_t * v, int * encodedsize, bool forceIDR);
+
+#endif // VA_VA264
