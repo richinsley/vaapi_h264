@@ -9,6 +9,7 @@ package vaapi_h264
 // #include "va_h264.h"
 import "C"
 import (
+	"errors"
 	"image"
 	"io"
 	"sync"
@@ -28,7 +29,7 @@ type encoder struct {
 }
 
 func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, error) {
-	if params.KeyFrameInterval == 0 {
+	if params.KeyFrameInterval <= 0 {
 		params.KeyFrameInterval = 60
 	}
 
@@ -59,7 +60,13 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 												{IDR(PBB)(PBB)}                     (6/6/3)
 												{IDR(PBB)(PBB)}.
 	*/
-	context := C.createContext(C.int(p.Width), C.int(p.Height), C.int(params.BitRate), C.int(params.KeyFrameInterval), C.int(0), C.int(1), C.int(p.FrameRate))
+
+	// when intra_period and intra_idr_period are equal, all intra-frames will be emitted as IDR frames
+	context := C.createContext(C.int(p.Width), C.int(p.Height), C.int(params.BitRate), C.int(params.KeyFrameInterval), C.int(params.KeyFrameInterval), C.int(1), C.int(p.FrameRate), C.int(VAProfileH264Main), C.int(RateControlCBR))
+	if context == unsafe.Pointer(nil) {
+		return nil, errors.New("failed to create vaapi context")
+	}
+
 	e := &encoder{
 		context:  context,
 		r:        video.ToI420(r),

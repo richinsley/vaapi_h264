@@ -43,6 +43,10 @@ typedef struct {
     VAPictureH264                       RefPicList0_B[32];
     VAPictureH264                       RefPicList1_B[32];
 
+    // Default entrypoint for Encode
+    VAEntrypoint                        requested_entrypoint;
+    VAEntrypoint                        selected_entrypoint;
+
     unsigned int                        numShortTerm;
     int                                 constraint_set_flag;
     int                                 h264_packedheader; /* support pack header? */
@@ -60,7 +64,7 @@ typedef struct {
 } VA264Context;
 
 void destroyContext(void * ctx);
-void * createContext(int width, int height, int bitrate, int intra_period, int idr_period, int ip_period, int frame_rate);
+void * createContext(int width, int height, int bitrate, int intra_period, int idr_period, int ip_period, int frame_rate, int profile, int rc_mode);
 uint8_t * encodeImage(void * ctx, int fourcc, uint8_t * y, uint8_t * u, uint8_t * v, int * encodedsize, bool forceIDR);
 
 #endif // VA_VA264

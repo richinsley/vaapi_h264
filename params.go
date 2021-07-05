@@ -6,9 +6,12 @@ import (
 	"github.com/pion/mediadevices/pkg/prop"
 )
 
-// Params stores libx264 specific encoding parameters.
+// Params stores vaapi h264 specific encoding parameters.
 type Params struct {
 	codec.BaseParams
+
+	H264Profile		H264Profile
+	RateControlMode	RateControlMode
 }
 
 type VAAPI_FOURCC uint
@@ -105,7 +108,10 @@ func NewParams() (Params, error) {
 	return Params{
 		BaseParams: codec.BaseParams{
 			KeyFrameInterval: 60,
+
 		},
+		H264Profile: VAProfileH264ConstrainedBaseline,
+		RateControlMode: RateControlCBR,
 	}, nil
 }
 

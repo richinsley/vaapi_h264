@@ -95,7 +95,7 @@ static const unsigned int num_ref_frames = 2;
 static const int srcyuv_fourcc = VA_FOURCC_NV12;
 static const unsigned int frame_slices = 1;
 
-static  int rc_default_modes[] = {
+static const int rc_default_modes[] = {
     VA_RC_VBR,
     VA_RC_CQP,
     VA_RC_VBR_CONSTRAINED,
@@ -106,10 +106,6 @@ static  int rc_default_modes[] = {
 
 #define MIN(a, b) ((a)>(b)?(b):(a))
 #define MAX(a, b) ((a)>(b)?(a):(b))
-
-// Default entrypoint for Encode
-static VAEntrypoint requested_entrypoint = -1;
-static VAEntrypoint selected_entrypoint = -1;
 
 struct __bitstream {
     unsigned int *buffer;
@@ -713,23 +709,23 @@ static int init_va(VA264Context * context)
         context->config.h264_profile = profile_list[i];
         vaQueryConfigEntrypoints(context->va_dpy, context->config.h264_profile, entrypoints, &num_entrypoints);
         for (slice_entrypoint = 0; slice_entrypoint < num_entrypoints; slice_entrypoint++) {
-            if (requested_entrypoint == -1 ) {
+            if (context->requested_entrypoint == -1 ) {
                 // Select the entry point based on what is avaiable
                 if ( (entrypoints[slice_entrypoint] == VAEntrypointEncSlice) ||
                      (entrypoints[slice_entrypoint] == VAEntrypointEncSliceLP) ) {
                     support_encode = 1;
-                    selected_entrypoint = entrypoints[slice_entrypoint];
+                    context->selected_entrypoint = entrypoints[slice_entrypoint];
                     break;
                 }
-            } else if ((entrypoints[slice_entrypoint] == requested_entrypoint)) {
+            } else if ((entrypoints[slice_entrypoint] == context->requested_entrypoint)) {
                 // Select the entry point based on what was requested in cmd line option
                 support_encode = 1;
-                selected_entrypoint = entrypoints[slice_entrypoint];
+                context->selected_entrypoint = entrypoints[slice_entrypoint];
                 break;
             }
         }
         if (support_encode == 1) {
-            printf("Using EntryPoint - %d \n",selected_entrypoint);
+            printf("Using EntryPoint - %d \n", context->selected_entrypoint);
             break;
         }
     }
@@ -767,7 +763,7 @@ static int init_va(VA264Context * context)
     for (i = 0; i < VAConfigAttribTypeMax; i++)
         context->attrib[i].type = i;
 
-    va_status = vaGetConfigAttributes(context->va_dpy, context->config.h264_profile, selected_entrypoint,
+    va_status = vaGetConfigAttributes(context->va_dpy, context->config.h264_profile, context->selected_entrypoint,
                                       &context->attrib[0], VAConfigAttribTypeMax);
     CHECK_VASTATUS(va_status, "vaGetConfigAttributes");
     /* check the interested configattrib */
@@ -910,7 +906,7 @@ static int setup_encode(VA264Context * context)
     VASurfaceID *tmp_surfaceid;
     int codedbuf_size, i;
 
-    va_status = vaCreateConfig(context->va_dpy, context->config.h264_profile, selected_entrypoint,
+    va_status = vaCreateConfig(context->va_dpy, context->config.h264_profile, context->selected_entrypoint,
             &context->config_attrib[0], context->config_attrib_num, &context->config_id);
     CHECK_VASTATUS(va_status, "vaCreateConfig");
 
@@ -1445,7 +1441,7 @@ void destroyContext(void * context)
     free(ctx);
 }
 
-void * createContext(int width, int height, int bitrate, int intra_period, int idr_period, int ip_period, int frame_rate)
+void * createContext(int width, int height, int bitrate, int intra_period, int idr_period, int ip_period, int frame_rate, int profile, int rc_mode)
 {
     VA264Context * context = (VA264Context*)malloc(sizeof(VA264Context));
     memset((void*)context, 0, sizeof(VA264Context));
@@ -1459,8 +1455,9 @@ void * createContext(int width, int height, int bitrate, int intra_period, int i
     context->config.intra_period = intra_period;
     context->config.intra_idr_period = idr_period;
     context->config.ip_period = ip_period;
-    context->config.rc_mode = VA_RC_VBR;//-1;
+    context->config.rc_mode = rc_mode; // VA_RC_VBR
     context->h264_maxref = (1<<16|1);
+    context->requested_entrypoint = context->selected_entrypoint = -1;
 
     if (context->config.ip_period < 1) {
         printf(" ip_period must be greater than 0\n");
@@ -1484,7 +1481,7 @@ void * createContext(int width, int height, int bitrate, int intra_period, int i
     }
 
     // one of: VAProfileH264ConstrainedBaseline, VAProfileH264Main, VAProfileH264High
-    context->config.h264_profile = VAProfileH264Main;
+    context->config.h264_profile = profile;
 
     context->frame_width_mbaligned = (context->config.frame_width + 15) & (~15);
     context->frame_height_mbaligned = (context->config.frame_height + 15) & (~15);
@@ -1589,12 +1586,14 @@ int main(int argc,char **argv)
     // To define a stream that starts with an IDR and has perpetual P frames with no I or B frames:
     //   |intra_period |intra_idr_period |ip_period |frame sequence (intra_period/intra_idr_period/ip_period)
     //   |0            |ignored          |1         | IDRPPPPPPP ...     (No IDR/I any more)
+    //
+    // When intra_period and intra_idr_period are equal, all intra frames will be emitted as IDR frames
     // We will then specify forceIDR=true for every 100th frame.  This in effect resets the internal frame type tracking so it starts 
     // at frame '0' again.  This will in effect force an IDR frame regardless of which ever GOP structure you are using.
-    int intra_period = 60;//0;
-    int intra_idr_period = 0;//-1;
+    int intra_period = 60;
+    int intra_idr_period = 60;
     int ip_period = 1;
-    VA264Context * context = (VA264Context *)createContext(640, 480, 500000, intra_period, intra_idr_period, ip_period, 30);
+    VA264Context * context = (VA264Context *)createContext(640, 480, 500000, intra_period, intra_idr_period, ip_period, 30, VAProfileH264ConstrainedBaseline, VA_RC_CQP);
     if(!context) {
         fprintf(stderr, "Failed to create vaapi context\n");
         exit(1);
