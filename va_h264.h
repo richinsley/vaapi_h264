@@ -38,10 +38,10 @@ typedef struct {
     VAEncPictureParameterBufferH264     pic_param;
     VAEncSliceParameterBufferH264       slice_param;
     VAPictureH264                       CurrentCurrPic;
-    VAPictureH264                       ReferenceFrames[16];
-    VAPictureH264                       RefPicList0_P[32];
-    VAPictureH264                       RefPicList0_B[32];
-    VAPictureH264                       RefPicList1_B[32];
+    VAPictureH264                       ReferenceFrames[SURFACE_NUM];
+    VAPictureH264                       RefPicList0_P[SURFACE_NUM * 2];
+    VAPictureH264                       RefPicList0_B[SURFACE_NUM * 2];
+    VAPictureH264                       RefPicList1_B[SURFACE_NUM * 2];
 
     // Default entrypoint for Encode
     VAEntrypoint                        requested_entrypoint;

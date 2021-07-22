@@ -1050,6 +1050,34 @@ static int update_RefPicList(VA264Context * context)
 {
     unsigned int current_poc = context->CurrentCurrPic.TopFieldOrderCnt;
 
+    if (context->current_frame_type == FRAME_IDR) 
+    {
+        // per issue 1189 in Intel Media Driver:
+        // https://github.com/intel/media-driver/issues/1189
+        // For the start of each IDR, reset ALL the reference pic lists to invalid
+        uint32_t flags = VA_PICTURE_H264_INVALID;
+        for (int i = 0; i < SURFACE_NUM * 2; i++)
+        {
+            context->slice_param.RefPicList0[i].flags = flags;
+            context->slice_param.RefPicList1[i].flags = flags;
+            context->RefPicList0_P[i].flags = flags;
+            context->RefPicList0_B[i].flags = flags;
+            context->RefPicList1_B[i].flags = flags;
+            context->slice_param.RefPicList1[i].picture_id = VA_INVALID_SURFACE;
+            context->slice_param.RefPicList0[i].picture_id = VA_INVALID_SURFACE;
+            context->RefPicList0_P[i].picture_id = VA_INVALID_SURFACE;
+            context->RefPicList0_B[i].picture_id = VA_INVALID_SURFACE;
+            context->RefPicList1_B[i].picture_id = VA_INVALID_SURFACE;
+
+        }
+
+        for (int i = 0; i < SURFACE_NUM; i++)
+        {
+            context->ReferenceFrames[i].picture_id = VA_INVALID_SURFACE;
+            context->ReferenceFrames[i].flags = flags;
+        }
+    }
+
     if (context->current_frame_type == FRAME_P) {
         memcpy(context->RefPicList0_P, context->ReferenceFrames, context->numShortTerm * sizeof(VAPictureH264));
         sort_one(context->RefPicList0_P, 0, context->numShortTerm - 1, 0, 1);
